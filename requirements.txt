@@ -1,0 +1,17 @@
+fastapi>=0.115.0
+uvicorn>=0.32.0
+pydantic>=2.5.0
+mcp
+httpx
+
+# Google Agent Development Kit
+google-adk==1.18.0
+
+# LiteLLM for Ollama integration
+litellm==1.79.3
+
+# Required for FastAPI file uploads
+python-multipart
+
+# Streamlit for chat interface
+streamlit>=1.40.0
