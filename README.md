@@ -75,11 +75,21 @@ python mcp_servers/mcp_server.py
 ✅ Running on: http://localhost:8002/mcp
 
 ### Terminal 3: ADK Agent
+
+**Option A: Terminal Chat (ADK CLI)**
 ```bash
 cd /Users/sudhakarchigurupati/ADKProject/mcp_project
 source venv/bin/activate
 adk run it_asset_manager_app
 ```
+
+**Option B: Web Chat (Streamlit)**
+```bash
+cd /Users/sudhakarchigurupati/ADKProject/mcp_project
+source venv/bin/activate
+streamlit run streamlit_app/app.py
+```
+Opens in browser at http://localhost:8501
 
 ## Usage
 
