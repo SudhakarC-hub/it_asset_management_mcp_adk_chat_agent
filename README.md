@@ -186,8 +186,142 @@ Make sure you're in the project root when running `adk run`.
 - **Streamable HTTP**: Production-ready MCP transport
 - **Python 3.11**: Runtime
 
-## References
-
 - [ADK Documentation](https://google.github.io/adk-docs/)
 - [MCP Tools Guide](https://google.github.io/adk-docs/tools-custom/mcp-tools/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
+
+---
+
+## Advanced: Using Multiple MCP Servers
+
+ADK supports connecting to **multiple MCP servers** simultaneously, allowing you to build multi-service AI agents.
+
+### Use Case
+
+Imagine you have separate services for different domains:
+- **IT Asset Management** (Port 8002)
+- **HR Management** (Port 8003)
+- **Finance** (Port 8004)
+
+Each service has its own MCP server exposing domain-specific tools.
+
+### Implementation
+
+```python
+from google.adk.agents.llm_agent import Agent
+from google.adk.models.lite_llm import LiteLlm
+from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
+
+
+# MCP Server 1: IT Asset Management
+asset_mcp = McpToolset(
+    connection_params=StreamableHTTPConnectionParams(
+        url="http://localhost:8002/mcp"
+    )
+)
+
+# MCP Server 2: HR Management
+hr_mcp = McpToolset(
+    connection_params=StreamableHTTPConnectionParams(
+        url="http://localhost:8003/mcp"
+    )
+)
+
+# MCP Server 3: Finance
+finance_mcp = McpToolset(
+    connection_params=StreamableHTTPConnectionParams(
+        url="http://localhost:8004/mcp"
+    )
+)
+
+# Create agent with ALL MCP toolsets
+root_agent = Agent(
+    model=LiteLlm(
+        model="ollama_chat/mistral:latest",
+        api_base="http://localhost:11434"
+    ),
+    name="multi_service_agent",
+    description="Multi-service agent managing IT, HR, and Finance",
+    instruction="""You are a multi-service assistant with access to:
+    
+    IT Asset Management:
+    - list_assets, add_asset
+    
+    HR Management:
+    - list_employees, add_employee, get_employee_details
+    
+    Finance:
+    - list_invoices, create_invoice, get_budget
+    
+    Use the appropriate tools based on user requests.""",
+    tools=[
+        asset_mcp,    # All IT asset tools
+        hr_mcp,       # All HR tools
+        finance_mcp   # All finance tools
+    ],
+)
+```
+
+### Architecture
+
+```
+User: "List all assets and show me John's employee details"
+    ↓
+ADK Agent (Single LLM)
+    ├─→ Asset MCP Server (Port 8002) → list_assets()
+    └─→ HR MCP Server (Port 8003) → get_employee_details("John")
+```
+
+### Benefits
+
+✅ **Separation of Concerns** - Each service has its own MCP server  
+✅ **Independent Scaling** - Scale each service separately  
+✅ **Team Ownership** - Different teams can own different MCP servers  
+✅ **Easy Integration** - Just add another `McpToolset` to connect a new service  
+✅ **Single Agent Interface** - Users interact with one agent that orchestrates all services
+
+### How It Works
+
+1. **Tool Discovery**: ADK automatically discovers all tools from all MCP servers
+2. **LLM Decision**: The LLM analyzes the user request and decides which tools to use
+3. **Parallel Execution**: ADK can call multiple tools from different MCP servers in parallel
+4. **Response Synthesis**: The LLM combines results from multiple services into a coherent response
+
+### Production Considerations
+
+- **Service Discovery**: Use environment variables for MCP server URLs
+- **Health Checks**: Implement health check endpoints for each MCP server
+- **Error Handling**: Each MCP server should handle errors independently
+- **Authentication**: Add authentication to MCP servers in production
+- **Rate Limiting**: Implement rate limiting per MCP server
+- **Monitoring**: Monitor each MCP server separately
+
+### Example: Environment-Based Configuration
+
+```python
+import os
+
+# Load MCP server URLs from environment
+ASSET_MCP_URL = os.getenv("ASSET_MCP_URL", "http://localhost:8002/mcp")
+HR_MCP_URL = os.getenv("HR_MCP_URL", "http://localhost:8003/mcp")
+FINANCE_MCP_URL = os.getenv("FINANCE_MCP_URL", "http://localhost:8004/mcp")
+
+# Create toolsets
+asset_mcp = McpToolset(
+    connection_params=StreamableHTTPConnectionParams(url=ASSET_MCP_URL)
+)
+hr_mcp = McpToolset(
+    connection_params=StreamableHTTPConnectionParams(url=HR_MCP_URL)
+)
+finance_mcp = McpToolset(
+    connection_params=StreamableHTTPConnectionParams(url=FINANCE_MCP_URL)
+)
+
+# Agent with all services
+root_agent = Agent(
+    model=LiteLlm(model="ollama_chat/mistral:latest"),
+    tools=[asset_mcp, hr_mcp, finance_mcp],
+)
+```
+
+This pattern allows you to build **enterprise-grade multi-service AI agents** that can orchestrate across your entire organization's services! 🚀
